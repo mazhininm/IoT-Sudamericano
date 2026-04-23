@@ -15,7 +15,6 @@
             margin-top: 40px; 
             color: #38bdf8; 
         }
-        /* Contenedor flexible para alinear las tarjetas */
         .container { 
             display: flex; 
             justify-content: center; 
@@ -27,15 +26,45 @@
             padding: 20px; 
             background: #1e293b; 
             border-radius: 12px; 
-            width: 200px; 
+            width: 220px; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
         .valor { 
             font-size: 40px; 
             margin-top: 10px; 
+            font-weight: bold;
         }
         .unidad { 
             font-size: 20px; 
             color: #94a3b8; 
+            font-weight: normal;
+        }
+
+        /* Estilos para la Barra de Temperatura */
+        .barra-contenedor {
+            width: 100%;
+            height: 12px;
+            background-color: #334155;
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        .barra-relleno {
+            height: 100%;
+            width: 0%; /* Empieza en 0 */
+            background-color: blue; 
+            transition: width 0.8s ease, background-color 0.8s ease;
+        }
+
+        /* Estilos para las Gotas de Humedad */
+        .gotas-contenedor {
+            margin-top: 15px;
+            font-size: 18px; /* Tamaño de las gotas */
+            display: flex;
+            justify-content: space-between;
+        }
+        .gota {
+            transition: filter 0.5s ease, opacity 0.5s ease;
         }
     </style>
 </head>
@@ -46,11 +75,16 @@
         <div class="card">
             <p>Temperatura</p>
             <div id="temp-val" class="valor">-- <span class="unidad">°C</span></div>
+            <div class="barra-contenedor">
+                <div id="temp-barra" class="barra-relleno"></div>
+            </div>
         </div>
         
         <div class="card">
             <p>Humedad</p>
             <div id="hum-val" class="valor">-- <span class="unidad">%</span></div>
+            <div id="hum-gotas" class="gotas-contenedor">
+                </div>
         </div>
         
         <div class="card">
@@ -60,39 +94,36 @@
     </div>
 
     <script>
-        // Tu token (El mismo que pusiste en el Arduino)
+        // ¡OJO! Pon tu token aquí nuevamente
         const TOKEN = "159dc7fd-e27f-47bc-a747-8f56425fc767";
 
-        // Función dinámica para obtener cualquier variable
-        async function fetchVariable(nombreVariable, idElemento, unidad) {
+        // Modificamos fetchVariable para que devuelva el valor en lugar de imprimirlo directamente
+        async function fetchVariable(nombreVariable) {
             try {
                 const response = await fetch(`https://api.tago.io/data?variable=${nombreVariable}&query=last_value`, {
                     headers: { "Device-Token": TOKEN }
                 });
                 const data = await response.json();
                 
-                // Si TagoIO devuelve datos, los actualizamos en el HTML
                 if (data.result && data.result.length > 0) {
-                    document.getElementById(idElemento).innerHTML = data.result[0].value + ` <span class="unidad">${unidad}</span>`;
+                    return data.result[0].value;
                 }
             } catch (error) {
                 console.error(`Error obteniendo ${nombreVariable}:`, error);
             }
+            return null; // Retorna null si falla
         }
 
-        // Función principal que llama a las 3 variables
-        function obtenerDatos() {
-            fetchVariable("temperature", "temp-val", "°C");
-            fetchVariable("humidity", "hum-val", "%");
-            fetchVariable("hindex", "hic-val", "°C");
-        }
+        // Función para actualizar la barra de colores
+        function actualizarBarraTemperatura(temp) {
+            const barra = document.getElementById("temp-barra");
+            
+            // Calculamos el ancho de la barra. Asumimos un máximo de 50°C para llenar la barra al 100%.
+            let porcentaje = (temp / 50) * 100;
+            if (porcentaje < 0) porcentaje = 0;
+            if (porcentaje > 100) porcentaje = 100;
+            barra.style.width = porcentaje + "%";
 
-        // El Arduino actualiza datos cada ~34 segundos en total. 
-        // Consultar cada 10 segundos mantendrá la interfaz ágil sin saturar la red.
-        setInterval(obtenerDatos, 10000); 
-        
-        // Ejecución inmediata al abrir la página
-        obtenerDatos(); 
-    </script>
-</body>
-</html>
+            // Calculamos el color. En la rueda HSL: 240 es Azul, 120 es Verde, 0 es Rojo.
+            // Si multiplicamos los grados por 6 y se lo restamos a 240, logramos esa transición.
+            let hue = 240 - (temp
